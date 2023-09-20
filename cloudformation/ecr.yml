@@ -1,0 +1,31 @@
+
+Parameters:
+  applicationName:
+    Type: String
+    Default: clockify-sync
+    Description: Name of the application
+Resources:
+  LambdaECR:
+      Type: AWS::ECR::Repository
+      Description: ECR to hold image of Lambda function
+      Properties:
+        ImageScanningConfiguration: 
+          ScanOnPush: false
+        RepositoryName: !Sub "${applicationName}-lambda"
+        RepositoryPolicyText:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: ECRLambdaPolicy
+              Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action:
+                - "ecr:BatchGetImage"
+                - "ecr:GetDownloadUrlForLayer"
+Outputs:
+  LambdaECRUri:
+    Description: ECR URI for Lambda function
+    Value: !GetAtt LambdaECR.RepositoryUri
+    Export:
+      Name: !Sub "${applicationName}-lambda-uri"

@@ -1,0 +1,99 @@
+Description: A stack containing resources for an AWS Serverless Lambda function triggered by a scheduled event and deployed through an AWS ECR. In addition, secrets are delivered to the Lambda environment. These secrets must exist in the SecretManager store before this template can be spun up.
+
+Parameters:
+  applicationName:
+    Type: String
+    Default: clockify-sync
+    Description: Name of the application
+  secretNames:
+    Type: String
+    Description: Comma separated list of secret names to be delivered to the Lambda environment
+
+Resources:
+  LambdaExecutor:
+      Type: AWS::IAM::Role
+      Description: Lambda execution role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: 
+                - "sts:AssumeRole"
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        RoleName: !Sub ${applicationName}-lambda-executor
+
+  Lambda: 
+      Type: AWS::Lambda::Function
+      Properties:
+        Architectures: 
+          - arm64
+        FunctionName: !Sub ${applicationName}-lambda
+        Code: 
+          ImageUri: !Join
+            - ""
+            - - Fn::ImportValue: !Sub "${applicationName}-lambda-uri"
+              - ":latest"
+
+        PackageType: Image
+        Role: !GetAtt LambdaExecutor.Arn
+        Environment:
+          Variables:
+            SECRET_NAMES: !Ref secretNames
+            ERROR_SNS_TOPIC_ARN: !Ref LambdaErrorNotificationTopic
+        Timeout: 90
+
+  LambdaSecretsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${applicationName}-secrets-policy
+      Roles:
+        - !Ref LambdaExecutor
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: '*'
+
+
+  LambdaScheduleRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: LambdaScheduleRule
+      Description: "Invoke Lambda function every day"
+      ScheduleExpression: "cron(00 23 * * ? *)"
+      Targets:
+        - Arn: !GetAtt Lambda.Arn
+          Id: InvokeLambdaTarget
+
+  LambdaScheduleRulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Lambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt LambdaScheduleRule.Arn
+
+  LambdaErrorNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: !Sub ${applicationName}-error-topic
+      TopicName: !Sub ${applicationName}-error-topic
+
+  LambdaErrorNotificationTopicPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${applicationName}-error-topic-policy
+      Roles:
+        - !Ref LambdaExecutor
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Effect: Allow
+          Action: sns:Publish
+          Resource: !Ref LambdaErrorNotificationTopic

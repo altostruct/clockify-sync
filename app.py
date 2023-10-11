@@ -70,6 +70,7 @@ def handler(_event, _context):
             "No secret names provided in SECRET_NAMES environment variable"
         )
 
+
     for secret_name in secret_names:
         secret = get_secret(secret_name)
 
@@ -78,13 +79,19 @@ def handler(_event, _context):
 
         auth_header = {"X-Api-Key": secret["token"]}
 
+        project_options_string = secret.get("project_options", None)
+        if project_options_string:
+            project_options = json.loads(project_options_string)
+
         logger.info("Syncing projects for secret %s...", secret_name)
+        logger.debug("Using project options: %s", project_options)
         try:
             sync_projects(
                 auth_header=auth_header,
                 destination_workspace_id=secret["time_entry_source_workspace_id"],
                 destination_workspace_client_id=secret["time_entry_source_client_id"],
                 source_workspace_id=secret["time_entry_destination_workspace_id"],
+                project_options=project_options
             )
         except Exception:
             handle_error(f"Failed to sync projects for secret {secret_name}.")

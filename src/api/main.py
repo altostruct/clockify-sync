@@ -4,6 +4,7 @@ Main module for the Clockify API.
 Simple library for interacting with the Clockify API.
 """
 from typing import Optional, Dict, List
+from copy import deepcopy
 import json
 import logging
 
@@ -146,9 +147,10 @@ def sync_projects(
         )
         new_project["clientId"] = destination_workspace_client_id
 
-        new_project = copy_dict_keys(
-            source_dict=project_options, destination_dict=new_project, keys=["color"]
-        )
+        if project_options:
+            new_project = copy_dict_keys(
+                source_dict=project_options, destination_dict=new_project, keys=["color"]
+            )
 
         add_new_project(
             destination_workspace_id,
@@ -289,6 +291,6 @@ def copy_dict_keys(source_dict: Dict, destination_dict, keys: List[str]):
     """Copy keys from one dict to another."""
 
     for key in keys:
-        destination_dict[key] = source_dict[key].copy()
+        destination_dict[key] = deepcopy(source_dict[key])
 
     return destination_dict

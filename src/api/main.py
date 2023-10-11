@@ -289,7 +289,6 @@ def hash_time_entry(entry):
 
 def copy_dict_keys(source_dict: Dict, destination_dict, keys: List[str]):
     """Copy keys from one dict to another."""
-
     for key in keys:
         destination_dict[key] = deepcopy(source_dict[key])
 

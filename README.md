@@ -21,6 +21,7 @@ This is what should be included in the secret:
 
 ```py
 {
+    #---Required---
     # The id of the source workspace where time entries should be synced from
     "time_entry_source_workspace_id": "your_source_workspace_id",
     # The id of the client that projects should be created under in the source workspace
@@ -31,6 +32,11 @@ This is what should be included in the secret:
     "user_id": "your_user_id",
     # The token giving access for the user whose time entries should be synced
     "token": "your_token"
+
+    #---Optional---
+    # Project options available in the clockify API. For example: {"color":"#00FFFF"}
+    "project_options":"{\"color\":\"#00FFFF\"}"
+
 }
 ```
 The token can be created on the [Clockify profile page](https://app.clockify.me/user/settings).

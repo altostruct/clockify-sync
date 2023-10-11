@@ -4,7 +4,7 @@ import datetime
 import traceback
 import os
 import json
-from typing import List
+from typing import List, Dict
 
 import boto3
 
@@ -42,7 +42,7 @@ def get_secret_names() -> List[str]:
     return secret_names
 
 
-def get_secret(secret_name: str) -> str:
+def get_secret(secret_name: str) -> Dict:
     """Get and parse secret data from AWS Secrets Manager"""
     secret = secrets_manager_client.get_secret_value(SecretId=secret_name)
 

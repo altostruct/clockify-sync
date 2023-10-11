@@ -1,6 +1,7 @@
 """Lambda handler to sync time entries and projects between workspaces"""
 
 import datetime
+import traceback
 import os
 import json
 from typing import List
@@ -22,7 +23,7 @@ logger = setup_logger()
 
 def handle_error(message):
     """Log error and publish to SNS if configured"""
-    logger.error(message)
+    logger.error(message, traceback.print_exc())
 
     if ERROR_SNS_TOPIC_ARN:
         sns_client.publish(

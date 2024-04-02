@@ -3,6 +3,7 @@ Main module for the Clockify API.
 
 Simple library for interacting with the Clockify API.
 """
+
 from typing import Optional, Dict, List
 from copy import deepcopy
 import json
@@ -98,21 +99,22 @@ def get_request(url, auth_header):
 
 def get_missing_projects(
     source_workspace_id,
+    source_auth_header,
+    dest_auth_header,
     destination_workspace_id,
     destination_workspace_client_id,
-    auth_header,
 ):
     """Get projects that are missing in the destination workspace."""
 
     destination_projects_for_client = get_all_projects(
-        destination_workspace_id, auth_header, destination_workspace_client_id
+        destination_workspace_id, dest_auth_header, destination_workspace_client_id
     )
 
     destination_projects_for_client_names = [
         project["name"] for project in destination_projects_for_client
     ]
 
-    all_source_projects = get_all_projects(source_workspace_id, auth_header)
+    all_source_projects = get_all_projects(source_workspace_id, source_auth_header)
 
     return [
         project
@@ -122,19 +124,24 @@ def get_missing_projects(
 
 
 def sync_projects(
+    source_auth_header,
     source_workspace_id,
     destination_workspace_id,
     destination_workspace_client_id,
-    auth_header,
+    dest_auth_header=None,
     project_options: Optional[Dict] = None,
 ):
     """Sync projects from one workspace to another."""
 
+    if not dest_auth_header:
+        dest_auth_header = source_auth_header
+
     destination_workspace_missing_projects = get_missing_projects(
-        source_workspace_id,
-        destination_workspace_id,
-        destination_workspace_client_id,
-        auth_header,
+        source_auth_header=source_auth_header,
+        source_workspace_id=source_workspace_id,
+        dest_auth_header=dest_auth_header,
+        destination_workspace_id=destination_workspace_id,
+        destination_workspace_client_id=destination_workspace_client_id,
     )
 
     if len(destination_workspace_missing_projects) == 0:
@@ -149,17 +156,19 @@ def sync_projects(
 
         if project_options:
             new_project = copy_dict_keys(
-                source_dict=project_options, destination_dict=new_project, keys=["color"]
+                source_dict=project_options,
+                destination_dict=new_project,
+                keys=["color"],
             )
 
         add_new_project(
             destination_workspace_id,
             new_project,
-            auth_header,
+            dest_auth_header,
         )
 
     destination_projects_for_client_updated = get_all_projects(
-        destination_workspace_id, auth_header, destination_workspace_client_id
+        destination_workspace_id, dest_auth_header, destination_workspace_client_id
     )
 
     destination_projects_for_client_updated_names = [
@@ -174,24 +183,31 @@ def sync_projects(
 
 
 def sync_time_entries(
-    user_id,
+    source_auth_header,
+    source_user_id,
     source_workspace_id,
     source_workspace_client_id,
-    destination_workspace_id,
     start_date,
     end_date,
-    auth_header,
+    destination_workspace_id,
+    dest_user_id=None,
+    dest_auth_header=None,
 ):
     """Sync time entries from one workspace to another."""
 
+    if not dest_auth_header:
+        dest_auth_header = source_auth_header
+    if not dest_user_id:
+        dest_user_id = source_user_id
+
     source_time_entries = get_user_time_entries(
-        user_id, source_workspace_id, start_date, end_date, auth_header
+        source_user_id, source_workspace_id, start_date, end_date, source_auth_header
     )
 
     source_client_projects = get_all_projects(
         workspace_id=source_workspace_id,
         client_id=source_workspace_client_id,
-        auth_header=auth_header,
+        auth_header=source_auth_header,
     )
 
     source_project_ids_for_client = [
@@ -199,11 +215,11 @@ def sync_time_entries(
     ]
 
     destination_current_time_entries = get_user_time_entries(
-        user_id=user_id,
+        user_id=dest_user_id,
         workspace_id=destination_workspace_id,
         start_date=start_date,
         end_date=end_date,
-        auth_header=auth_header,
+        auth_header=dest_auth_header,
     )
 
     hashed_destination_time_entries = [
@@ -226,7 +242,7 @@ def sync_time_entries(
         return
 
     destination_projects = get_all_projects(
-        workspace_id=destination_workspace_id, auth_header=auth_header
+        workspace_id=destination_workspace_id, auth_header=dest_auth_header
     )
 
     source_to_destination_project_map = map_source_to_destination_project_ids(
@@ -249,7 +265,7 @@ def sync_time_entries(
                 entry["projectId"],
             )
             continue
-        add_new_time_entry(formatted_entry, destination_workspace_id, auth_header)
+        add_new_time_entry(formatted_entry, destination_workspace_id, dest_auth_header)
 
 
 def map_source_to_destination_project_ids(source_client_projects, destination_projects):

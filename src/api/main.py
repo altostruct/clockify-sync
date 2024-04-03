@@ -3,6 +3,7 @@ Main module for the Clockify API.
 
 Simple library for interacting with the Clockify API.
 """
+
 from typing import Optional, Dict, List
 from copy import deepcopy
 import json
@@ -97,126 +98,137 @@ def get_request(url, auth_header):
 
 
 def get_missing_projects(
-    source_workspace_id,
-    destination_workspace_id,
-    destination_workspace_client_id,
-    auth_header,
+    src_workspace_id,
+    src_auth_header,
+    dest_auth_header,
+    dest_workspace_id,
+    dest_workspace_client_id,
 ):
     """Get projects that are missing in the destination workspace."""
 
-    destination_projects_for_client = get_all_projects(
-        destination_workspace_id, auth_header, destination_workspace_client_id
+    dest_projects_for_client = get_all_projects(
+        dest_workspace_id, dest_auth_header, dest_workspace_client_id
     )
 
-    destination_projects_for_client_names = [
-        project["name"] for project in destination_projects_for_client
+    dest_projects_for_client_names = [
+        project["name"] for project in dest_projects_for_client
     ]
 
-    all_source_projects = get_all_projects(source_workspace_id, auth_header)
+    all_src_projects = get_all_projects(src_workspace_id, src_auth_header)
 
     return [
         project
-        for project in all_source_projects
-        if project["name"] not in destination_projects_for_client_names
+        for project in all_src_projects
+        if project["name"] not in dest_projects_for_client_names
     ]
 
 
 def sync_projects(
-    source_workspace_id,
-    destination_workspace_id,
-    destination_workspace_client_id,
-    auth_header,
+    src_auth_header,
+    src_workspace_id,
+    dest_workspace_id,
+    dest_workspace_client_id,
+    dest_auth_header=None,
     project_options: Optional[Dict] = None,
 ):
     """Sync projects from one workspace to another."""
 
-    destination_workspace_missing_projects = get_missing_projects(
-        source_workspace_id,
-        destination_workspace_id,
-        destination_workspace_client_id,
-        auth_header,
+    if not dest_auth_header:
+        dest_auth_header = src_auth_header
+
+    dest_workspace_missing_projects = get_missing_projects(
+        src_auth_header=src_auth_header,
+        src_workspace_id=src_workspace_id,
+        dest_auth_header=dest_auth_header,
+        dest_workspace_id=dest_workspace_id,
+        dest_workspace_client_id=dest_workspace_client_id,
     )
 
-    if len(destination_workspace_missing_projects) == 0:
+    if len(dest_workspace_missing_projects) == 0:
         logger.info("All projects are already synced!")
         return
 
-    for project in destination_workspace_missing_projects:
-        new_project = copy_dict_keys(
-            source_dict=project, destination_dict={}, keys=["name"]
-        )
-        new_project["clientId"] = destination_workspace_client_id
+    for project in dest_workspace_missing_projects:
+        new_project = copy_dict_keys(src_dict=project, dest_dict={}, keys=["name"])
+        new_project["clientId"] = dest_workspace_client_id
 
         if project_options:
             new_project = copy_dict_keys(
-                source_dict=project_options, destination_dict=new_project, keys=["color"]
+                src_dict=project_options,
+                dest_dict=new_project,
+                keys=["color"],
             )
 
         add_new_project(
-            destination_workspace_id,
+            dest_workspace_id,
             new_project,
-            auth_header,
+            dest_auth_header,
         )
 
-    destination_projects_for_client_updated = get_all_projects(
-        destination_workspace_id, auth_header, destination_workspace_client_id
+    dest_projects_for_client_updated = get_all_projects(
+        dest_workspace_id, dest_auth_header, dest_workspace_client_id
     )
 
-    destination_projects_for_client_updated_names = [
-        project["name"] for project in destination_projects_for_client_updated
+    dest_projects_for_client_updated_names = [
+        project["name"] for project in dest_projects_for_client_updated
     ]
 
-    for project in destination_workspace_missing_projects:
-        if project["name"] not in destination_projects_for_client_updated_names:
+    for project in dest_workspace_missing_projects:
+        if project["name"] not in dest_projects_for_client_updated_names:
             raise RuntimeError(
                 f"Project \"{project['name']}\" was not added correctly!"
             )
 
 
 def sync_time_entries(
-    user_id,
-    source_workspace_id,
-    source_workspace_client_id,
-    destination_workspace_id,
+    src_auth_header,
+    src_user_id,
+    src_workspace_id,
+    src_workspace_client_id,
     start_date,
     end_date,
-    auth_header,
+    dest_workspace_id,
+    dest_user_id=None,
+    dest_auth_header=None,
 ):
     """Sync time entries from one workspace to another."""
 
-    source_time_entries = get_user_time_entries(
-        user_id, source_workspace_id, start_date, end_date, auth_header
+    if not dest_auth_header:
+        dest_auth_header = src_auth_header
+    if not dest_user_id:
+        dest_user_id = src_user_id
+
+    src_time_entries = get_user_time_entries(
+        src_user_id, src_workspace_id, start_date, end_date, src_auth_header
     )
 
-    source_client_projects = get_all_projects(
-        workspace_id=source_workspace_id,
-        client_id=source_workspace_client_id,
-        auth_header=auth_header,
+    src_client_projects = get_all_projects(
+        workspace_id=src_workspace_id,
+        client_id=src_workspace_client_id,
+        auth_header=src_auth_header,
     )
 
-    source_project_ids_for_client = [
-        project["id"] for project in source_client_projects
-    ]
+    src_project_ids_for_client = [project["id"] for project in src_client_projects]
 
-    destination_current_time_entries = get_user_time_entries(
-        user_id=user_id,
-        workspace_id=destination_workspace_id,
+    dest_current_time_entries = get_user_time_entries(
+        user_id=dest_user_id,
+        workspace_id=dest_workspace_id,
         start_date=start_date,
         end_date=end_date,
-        auth_header=auth_header,
+        auth_header=dest_auth_header,
     )
 
-    hashed_destination_time_entries = [
-        hash_time_entry(entry) for entry in destination_current_time_entries
+    hashed_dest_time_entries = [
+        hash_time_entry(entry) for entry in dest_current_time_entries
     ]
 
     # Filter out time entries that are not for the client
     # or already in the destination workspace
     missing_time_entries = [
         entry
-        for entry in source_time_entries
-        if entry["projectId"] in source_project_ids_for_client
-        and hash_time_entry(entry) not in hashed_destination_time_entries
+        for entry in src_time_entries
+        if entry["projectId"] in src_project_ids_for_client
+        and hash_time_entry(entry) not in hashed_dest_time_entries
     ]
 
     logger.info("Found %i missing time entries!", len(missing_time_entries))
@@ -225,19 +237,19 @@ def sync_time_entries(
         logger.info("All time entries are already synced!")
         return
 
-    destination_projects = get_all_projects(
-        workspace_id=destination_workspace_id, auth_header=auth_header
+    dest_projects = get_all_projects(
+        workspace_id=dest_workspace_id, auth_header=dest_auth_header
     )
 
-    source_to_destination_project_map = map_source_to_destination_project_ids(
-        source_client_projects=source_client_projects,
-        destination_projects=destination_projects,
+    src_to_dest_project_map = map_src_to_dest_project_ids(
+        src_client_projects=src_client_projects,
+        dest_projects=dest_projects,
     )
 
     for entry in missing_time_entries:
         try:
             formatted_entry = {
-                "projectId": source_to_destination_project_map[entry["projectId"]],
+                "projectId": src_to_dest_project_map[entry["projectId"]],
                 "start": entry["timeInterval"]["start"],
                 "end": entry["timeInterval"]["end"],
                 "description": entry["description"],
@@ -249,22 +261,20 @@ def sync_time_entries(
                 entry["projectId"],
             )
             continue
-        add_new_time_entry(formatted_entry, destination_workspace_id, auth_header)
+        add_new_time_entry(formatted_entry, dest_workspace_id, dest_auth_header)
 
 
-def map_source_to_destination_project_ids(source_client_projects, destination_projects):
+def map_src_to_dest_project_ids(src_client_projects, dest_projects):
     """Map source project ids to destination project ids."""
 
-    destination_project_map = {}
-    for project in destination_projects:
-        destination_project_map[project["name"]] = project["id"]
+    dest_project_map = {}
+    for project in dest_projects:
+        dest_project_map[project["name"]] = project["id"]
 
-    source_to_destination_project_map = {}
-    for project in source_client_projects:
+    src_to_dest_project_map = {}
+    for project in src_client_projects:
         try:
-            source_to_destination_project_map[project["id"]] = destination_project_map[
-                project["name"]
-            ]
+            src_to_dest_project_map[project["id"]] = dest_project_map[project["name"]]
         except KeyError:
             logger.error(
                 "Project '%s' was not found in the destination workspace!",
@@ -272,7 +282,7 @@ def map_source_to_destination_project_ids(source_client_projects, destination_pr
             )
             continue
 
-    return source_to_destination_project_map
+    return src_to_dest_project_map
 
 
 def hash_time_entry(entry):
@@ -287,9 +297,9 @@ def hash_time_entry(entry):
     )
 
 
-def copy_dict_keys(source_dict: Dict, destination_dict, keys: List[str]):
+def copy_dict_keys(src_dict: Dict, dest_dict, keys: List[str]):
     """Copy keys from one dict to another."""
     for key in keys:
-        destination_dict[key] = deepcopy(source_dict[key])
+        dest_dict[key] = deepcopy(src_dict[key])
 
-    return destination_dict
+    return dest_dict

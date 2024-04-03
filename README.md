@@ -31,12 +31,15 @@ This is what should be included in the secret:
     # The id of the user that time entries should be synced for
     "user_id": "your_user_id",
     # The token giving access for the user whose time entries should be synced
-    "token": "your_token"
+    "token": "your_token",
 
     #---Optional---
     # Project options available in the clockify API. For example: {"color":"#00FFFF"}
-    "project_options":"{\"color\":\"#00FFFF\"}"
-
+    "project_options":"{\"color\":\"#00FFFF\"}",
+    # If the time entries should be synced to a different user in the destination workspace, provide the user id and token of that user.
+    # If not provided, the time entries will be synced to the user with the same id as the source user.
+    "dest_token": "your_destination_token",
+    "dest_user_id": "your_destination_user_id",
 }
 ```
 The token can be created on the [Clockify profile page](https://app.clockify.me/user/settings).

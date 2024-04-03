@@ -70,14 +70,17 @@ def handler(_event, _context):
             "No secret names provided in SECRET_NAMES environment variable"
         )
 
-
     for secret_name in secret_names:
         secret = get_secret(secret_name)
 
         if not secret:
             raise ValueError(f"Missing secret with name {secret_name}")
 
-        auth_header = {"X-Api-Key": secret["token"]}
+        time_entry_src_auth_header = {"X-Api-Key": secret["token"]}
+        try:
+            time_entry_dest_auth_header = {"X-Api-Key": secret["dest_token"]}
+        except KeyError:
+            time_entry_dest_auth_header = time_entry_src_auth_header
 
         project_options_string = secret.get("project_options", None)
         if project_options_string:
@@ -87,11 +90,12 @@ def handler(_event, _context):
         logger.debug("Using project options: %s", project_options)
         try:
             sync_projects(
-                auth_header=auth_header,
-                destination_workspace_id=secret["time_entry_source_workspace_id"],
-                destination_workspace_client_id=secret["time_entry_source_client_id"],
-                source_workspace_id=secret["time_entry_destination_workspace_id"],
-                project_options=project_options
+                src_auth_header=time_entry_dest_auth_header,
+                dest_workspace_id=secret["time_entry_source_workspace_id"],
+                dest_workspace_client_id=secret["time_entry_source_client_id"],
+                src_workspace_id=secret["time_entry_destination_workspace_id"],
+                project_options=project_options,
+                dest_auth_header=time_entry_src_auth_header,
             )
         except Exception:
             handle_error(f"Failed to sync projects for secret {secret_name}.")
@@ -102,13 +106,15 @@ def handler(_event, _context):
         logger.info("Syncing time entries for secret %s...", secret_name)
         try:
             sync_time_entries(
-                auth_header=auth_header,
-                destination_workspace_id=secret["time_entry_destination_workspace_id"],
-                source_workspace_client_id=secret["time_entry_source_client_id"],
-                source_workspace_id=secret["time_entry_source_workspace_id"],
-                user_id=secret["user_id"],
+                src_auth_header=time_entry_src_auth_header,
+                src_workspace_client_id=secret["time_entry_source_client_id"],
+                src_workspace_id=secret["time_entry_source_workspace_id"],
+                src_user_id=secret["user_id"],
                 start_date=SYNC_START_DATE,
+                dest_user_id=secret.get("dest_user_id"),
                 end_date=SYNC_END_DATE,
+                dest_workspace_id=secret["time_entry_destination_workspace_id"],
+                dest_auth_header=time_entry_dest_auth_header,
             )
         except Exception:
             handle_error(f"Failed to sync time entries for secret {secret_name}.")

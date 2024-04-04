@@ -1,13 +1,50 @@
 # Clockify sync
-This is a simple lambda function that syncs time entries bewteen two Clockify workspaces using the Clockify API.
+This is a simple project that syncs time entries bewteen two Clockify workspaces using the Clockify API.
 It is designed to sync time entries from one workspace where time entries are created under a single client to another workspace where time entries can be created under multiple clients.
+
+- [Clockify sync](#clockify-sync)
+  - [How it works](#how-it-works)
+  - [Interactive CLI](#interactive-cli)
+    - [Installation](#installation)
+    - [Configuration](#configuration)
+    - [Runnning the CLI](#runnning-the-cli)
+  - [Automated usage](#automated-usage)
+    - [Confguration](#confguration)
+    - [Dependencies](#dependencies)
+    - [Deploying the cloudfomation template](#deploying-the-cloudfomation-template)
+    - [Deploying the application](#deploying-the-application)
+  - [How to contribute](#how-to-contribute)
+  - [Code of conduct](#code-of-conduct)
+
 
 ## How it works
 1. Projects are first synced from the desitination workspace to the source workspace. Any projects that do not exist in the source workspace are created under the specified client.
 2. A mapping of project IDs is created between the source and destination workspaces so that time entries can be synced to the correct project.
 3. Time entries are synced from the source workspace to the destination workspace. Time entries are only synced if they have not already been synced. Time entries are synced to the project that has the same name as the project in the source workspace.
 
-## Usage
+## Interactive CLI
+Time entries can be synced using the interactive CLI which allows the user to select the sync options.
+
+### Installation
+1. Clone the repository
+2. Install the requirements `pip install -r requirements.txt`
+
+### Configuration
+The CLI needs to be configured with the Clockify API key for the source workspace and the destination workspace. The API key can be found on the [Clockify profile page](https://app.clockify.me/user/settings).
+
+### Runnning the CLI
+Run the CLI by calling `python3 clockify-sync/`
+
+```sh
+# Required
+SRC_CLOCKIFY_API_KEY=your_source_api_key
+
+# Optional
+# If not provided, the source API key will be used to look up the rest of the configuration.
+DEST_CLOCKIFY_API_KEY=your_destination_api_key
+```
+
+## Automated usage
 A cloudformation template is provided in the [cloudformation](/cloudformation/) directory. The template creates a lambda function and an event rule that triggers the lambda function every day. It also creates a SNS topic that is used to send error messages from the lambda function if syncing fails.
 
 ### Confguration

@@ -14,6 +14,28 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+def get_auth_header(api_key):
+    """Create an auth header for the Clockify API."""
+
+    return {"X-Api-Key": api_key}
+
+
+def get_workspaces(auth_header):
+    """Get all workspaces for the currently logged in user."""
+
+    url = "https://api.clockify.me/api/v1/workspaces"
+
+    return get_request(url=url, auth_header=auth_header)
+
+
+def get_clients(auth_header, workspace_id):
+    """Get all clients in a workspace."""
+
+    url = f"https://api.clockify.me/api/v1/workspaces/{workspace_id}/clients"
+
+    return get_request(url=url, auth_header=auth_header)
+
+
 def get_currently_logged_in_user(auth_header):
     """Get the currently logged in user."""
 
